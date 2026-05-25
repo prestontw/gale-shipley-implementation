@@ -1,1 +1,8 @@
-/target
+!.gitignore
+!Cargo.lock
+!Cargo.toml
+!justfile
+!rust-toolchain.toml
+!src/**
+
+/**/*
