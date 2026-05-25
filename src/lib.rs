@@ -31,6 +31,8 @@ type ProgramCapacity = u16;
 ///
 /// Applicants rank programs (Doctor Drew ranks Harvard Hospital first),
 /// and programs rank applicants (Carollton Care ranks Doctor Drew second).
+///
+/// Optimization: find connected components first then run this algorithm on the independent components?
 pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::hash::Hash>(
     program_capacities: HashMap<P, ProgramCapacity>,
     program_rank_order_lists: HashMap<A, Vec<P>>,
