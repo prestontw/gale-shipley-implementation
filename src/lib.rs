@@ -45,18 +45,18 @@ pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::has
         .cloned()
         .collect::<VecDeque<_>>();
 
-    while let Some(candidate) = candidates.pop_front() {
-        for program in &program_rank_order_lists[&candidate] {
+    'candidate: while let Some(candidate) = candidates.pop_front() {
+        'program: for program in &program_rank_order_lists[&candidate] {
             match rankings.attempt_match(&candidate, program) {
                 MatchResult::MatchedWithCapacity => {
-                    break;
+                    continue 'candidate;
                 }
                 MatchResult::WillSwapFor(other_candidate) => {
                     candidates.push_back(other_candidate);
-                    break;
+                    continue 'candidate;
                 }
                 MatchResult::NotInterested => {
-                    continue;
+                    continue 'program;
                 }
             }
         }
@@ -167,86 +167,69 @@ mod tests {
 
     #[test]
     fn wikipedia_example() {
-        let doctor_a = Doctor::new("A");
-        let doctor_b = Doctor::new("B");
-        let doctor_c = Doctor::new("C");
+        let doctor_a = "A";
+        let doctor_b = "B";
+        let doctor_c = "C";
 
-        let hospital_x = Hospital::new("X");
-        let hospital_y = Hospital::new("Y");
-        let hospital_z = Hospital::new("Z");
+        let hospital_x = "X";
+        let hospital_y = "Y";
+        let hospital_z = "Z";
 
         // A: YXZ   B: ZYX   C: XZY
         let doctor_rankings = [
-            (
-                doctor_a.clone(),
-                DoctorsRankList::new(vec![
-                    hospital_y.clone(),
-                    hospital_x.clone(),
-                    hospital_z.clone(),
-                ]),
-            ),
-            (
-                doctor_b.clone(),
-                DoctorsRankList::new(vec![
-                    hospital_z.clone(),
-                    hospital_y.clone(),
-                    hospital_x.clone(),
-                ]),
-            ),
-            (
-                doctor_c.clone(),
-                DoctorsRankList::new(vec![
-                    hospital_x.clone(),
-                    hospital_z.clone(),
-                    hospital_y.clone(),
-                ]),
-            ),
+            (doctor_a, vec![hospital_y, hospital_x, hospital_z]),
+            (doctor_b, vec![hospital_z, hospital_y, hospital_x]),
+            (doctor_c, vec![hospital_x, hospital_z, hospital_y]),
         ]
-        .to_vec();
+        .into_iter()
+        .collect();
+
         // X: BAC   Y: CBA   Z: ACB
         let hospital_rankings = [
-            (
-                hospital_x.clone(),
-                HospitalsRankList::new(vec![doctor_b.clone(), doctor_a.clone(), doctor_c.clone()]),
-            ),
-            (
-                hospital_y.clone(),
-                HospitalsRankList::new(vec![doctor_c.clone(), doctor_b.clone(), doctor_a.clone()]),
-            ),
-            (
-                hospital_z.clone(),
-                HospitalsRankList::new(vec![doctor_a.clone(), doctor_c.clone(), doctor_b.clone()]),
-            ),
+            (hospital_x, vec![doctor_b, doctor_a, doctor_c]),
+            (hospital_y, vec![doctor_c, doctor_b, doctor_a]),
+            (hospital_z, vec![doctor_a, doctor_c, doctor_b]),
         ]
-        .to_vec();
+        .into_iter()
+        .collect();
+
+        let hospital_capacities = [(hospital_x, 1), (hospital_y, 1), (hospital_z, 1)]
+            .into_iter()
+            .collect();
 
         // possible solutions
-        let solution = match_algorithm(doctor_rankings, hospital_rankings);
+        let solution = match_algorithm(hospital_capacities, doctor_rankings, hospital_rankings);
         // doctors get their first choice and hospitals their third – (AY, BZ, CX);
         assert!(
             solution
                 == (
-                    HashSet::from_iter([
-                        Match(doctor_a.clone(), hospital_y.clone()),
-                        Match(doctor_b.clone(), hospital_z.clone()),
-                        Match(doctor_c.clone(), hospital_x.clone())
+                    HashMap::from_iter([
+                        (doctor_a, hospital_y),
+                        (doctor_b, hospital_z),
+                        (doctor_c, hospital_x)
                     ]),
                     HashSet::new()
-                )
-                || solution
-                    == HashSet::from_iter([
-                        // everyone gets their second choice – (AX, BY, CZ);
-                        Match(doctor_a.clone(), hospital_x.clone()),
-                        Match(doctor_b.clone(), hospital_y.clone()),
-                        Match(doctor_c.clone(), hospital_z.clone())
-                    ])
-                || solution
-                    == HashSet::from_iter([
-                        // hospitals get their first choice and doctors their third – (AZ, BX, CY)
-                        Match(doctor_a.clone(), hospital_z.clone()),
-                        Match(doctor_b.clone(), hospital_x.clone()),
-                        Match(doctor_c.clone(), hospital_y.clone())
-                    ]),
+                ),
+            // || solution
+            //     == (
+            //         HashMap::from_iter([
+            //             // everyone gets their second choice – (AX, BY, CZ);
+            //             (doctor_a.clone(), hospital_x.clone()),
+            //             (doctor_b.clone(), hospital_y.clone()),
+            //             (doctor_c.clone(), hospital_z.clone())
+            //         ],),
+            //         HashSet::new()
+            //     )
+            // || solution
+            //     == (
+            //         HashMap::from_iter([
+            //             // hospitals get their first choice and doctors their third – (AZ, BX, CY)
+            //             (doctor_a.clone(), hospital_z.clone()),
+            //             (doctor_b.clone(), hospital_x.clone()),
+            //             (doctor_c.clone(), hospital_y.clone())
+            //         ]),
+            //         HashSet::new(),
+            //     ),
             "unexpected solution: {:?}",
             solution
         );
