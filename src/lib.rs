@@ -18,7 +18,9 @@ type ProgramCapacity = u16;
 /// 2^9 is 512, so that would work, but Rust doesn't have arbitrary sized integers
 /// (and I don't want to switch to the only language I know that does, Zig),
 /// so we are going with u16. In practice, u8 would probably work...
-type ApplicantRanking = u16;
+///
+/// Not needed in practice.
+// type ApplicantRanking = u16;
 
 /// Implementation of the Gale-Shapley algorithm to see how fast "The Match" takes depending on the number of people involved.
 /// Based on hearsay that matching for fellowship for residents takes only a couple of seconds based on the number of residents,
@@ -29,7 +31,7 @@ type ApplicantRanking = u16;
 ///
 /// Applicants rank programs (Doctor Drew ranks Harvard Hospital first),
 /// and programs rank applicants (Carollton Care ranks Doctor Drew second).
-pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P>(
+pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::hash::Hash>(
     program_capacities: HashMap<P, ProgramCapacity>,
     program_rank_order_lists: HashMap<A, Vec<P>>,
     applicant_rank_order_lists: HashMap<P, Vec<A>>,
@@ -75,9 +77,14 @@ enum MatchResult<A> {
 struct Rankings<'input, P, A> {
     program_capacities: &'input HashMap<P, ProgramCapacity>,
     applicant_rank_order_lists: &'input HashMap<P, Vec<A>>,
+    ranked_matches: HashMap<P, Vec<(A, ProgramCapacity)>>,
 }
 
-impl<'i, P, A> Rankings<'i, P, A> {
+impl<'i, P, A> Rankings<'i, P, A>
+where
+    P: Eq + std::hash::Hash + Clone,
+    A: Eq + std::hash::Hash + Clone,
+{
     fn new(
         program_capacities: &'i HashMap<P, ProgramCapacity>,
         applicant_rank_order_lists: &'i HashMap<P, Vec<A>>,
@@ -85,15 +92,72 @@ impl<'i, P, A> Rankings<'i, P, A> {
         Rankings {
             program_capacities,
             applicant_rank_order_lists,
+            ranked_matches: HashMap::new(),
         }
     }
 
     fn attempt_match(&mut self, applicant: &A, program: &P) -> MatchResult<A> {
-        MatchResult::MatchedWithCapacity
+        let program_ranked_applicant = {
+            self.applicant_rank_order_lists
+                .get(program)
+                .and_then(|rol| {
+                    rol.iter()
+                        .position(|ranked_applicant| ranked_applicant == applicant)
+                })
+        };
+        let Some(program_ranked_applicant) = program_ranked_applicant else {
+            return MatchResult::NotInterested;
+        };
+        let program_ranked_applicant = program_ranked_applicant
+            .try_into()
+            .expect("higher number of applicants than expected");
+        let program_matches = {
+            self.ranked_matches
+                .entry(program.clone())
+                .or_insert_with(Vec::new)
+        };
+        let Some(max_program_capacity) = self.program_capacities.get(program) else {
+            return MatchResult::NotInterested;
+        };
+        if *max_program_capacity == 0 {
+            return MatchResult::NotInterested;
+        }
+        if program_matches.len() < (*max_program_capacity as usize) {
+            program_matches.push((applicant.clone(), program_ranked_applicant));
+            return MatchResult::MatchedWithCapacity;
+        }
+
+        // See if the program would rather have someone else.
+        // Find the min, compare the rankings, then either replace if new applicant is better
+        // or say not interested.
+        let (least_favorite_index, (_, least_favorite_ranking)) = {
+            program_matches
+                .iter()
+                .enumerate()
+                .min_by_key(|(_, (_, ranking))| ranking)
+                .expect("capacity is non-zero and length is greater than capacity")
+        };
+
+        if *least_favorite_ranking < program_ranked_applicant {
+            MatchResult::NotInterested
+        } else {
+            let least_favorite_applicant = program_matches.swap_remove(least_favorite_index);
+            program_matches.push((applicant.clone(), program_ranked_applicant));
+            MatchResult::WillSwapFor(least_favorite_applicant.0)
+        }
     }
 
     fn matches(self) -> Matches<A, P> {
-        HashMap::new()
+        self.ranked_matches
+            .into_iter()
+            .fold(HashMap::new(), |mut acc, program_rankings| {
+                let (program, applicants) = program_rankings;
+                let accepted_applicants = applicants
+                    .into_iter()
+                    .map(|(applicant, _)| (applicant, program.clone()));
+                acc.extend(accepted_applicants);
+                acc
+            })
     }
 }
 
