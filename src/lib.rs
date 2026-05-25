@@ -14,7 +14,7 @@ pub type Matches<A, P> = HashMap<A, P>;
 /// Max size of applicant rank order lists: No limit per <https://www.nrmp.org/help/item/how-many-applicants-can-i-rank/>.
 /// So, we use a heuristic based on the largest data so far.
 /// From <https://www.nrmp.org/about/news/2026/03/nrmp-releases-results-of-the-2026-main-residency-match-for-more-than-38000-future-residents/>,
-/// 2026 there were 44,000 spots open. In the pathological space where one hospital has all of that capacity,
+/// 2026 there were 44,000 spots open. In the pathological space where one hospital has all of that capacity
 /// available for everyone, we pick u16 since 2^16 > 44,000.
 type ProgramCapacity = u16;
 
@@ -28,7 +28,10 @@ type ProgramCapacity = u16;
 /// Applicants rank programs (Doctor Drew ranks Harvard Hospital first),
 /// and programs rank applicants (Carollton Care ranks Doctor Drew second).
 ///
+/// Optimization: when swapping a candidate, tell them where we kicked them from so we don't have to traverse up to that point again.
 /// Optimization: find connected components first then run this algorithm on the independent components?
+///
+/// TODO: <https://www.nrmp.org/residency-applicants/get-ready-for-the-match/couples-in-the-match/>
 pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::hash::Hash>(
     program_capacities: HashMap<P, ProgramCapacity>,
     program_rank_order_lists: HashMap<A, Vec<P>>,
