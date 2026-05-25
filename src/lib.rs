@@ -4,23 +4,19 @@ pub type UnmatchedApplicants<A> = HashSet<A>;
 
 pub type Matches<A, P> = HashMap<A, P>;
 
-/// Applicant rank order lists. No limit per <https://www.nrmp.org/help/item/how-many-applicants-can-i-rank/>.
+/// ## Constraints
+/// Max size of program rank order lists: 300 max per <https://www.nrmp.org/help/item/how-many-programs-can-i-rank/>:
+///
+/// > Rank Order Lists cannot exceed 300
+///
+/// But we don't need to constrain the number in this implementation.
+///
+/// Max size of applicant rank order lists: No limit per <https://www.nrmp.org/help/item/how-many-applicants-can-i-rank/>.
 /// So, we use a heuristic based on the largest data so far.
 /// From <https://www.nrmp.org/about/news/2026/03/nrmp-releases-results-of-the-2026-main-residency-match-for-more-than-38000-future-residents/>,
 /// 2026 there were 44,000 spots open. In the pathological space where one hospital has all of that capacity,
 /// available for everyone, we pick u16 since 2^16 > 44,000.
 type ProgramCapacity = u16;
-
-/// Program rank order lists. 300 max per <https://www.nrmp.org/help/item/how-many-programs-can-i-rank/>:
-///
-/// > Rank Order Lists cannot exceed 300
-///
-/// 2^9 is 512, so that would work, but Rust doesn't have arbitrary sized integers
-/// (and I don't want to switch to the only language I know that does, Zig),
-/// so we are going with u16. In practice, u8 would probably work...
-///
-/// Not needed in practice.
-// type ApplicantRanking = u16;
 
 /// Implementation of the Gale-Shapley algorithm to see how fast "The Match" takes depending on the number of people involved.
 /// Based on hearsay that matching for fellowship for residents takes only a couple of seconds based on the number of residents,
@@ -113,11 +109,7 @@ where
         let program_ranked_applicant = program_ranked_applicant
             .try_into()
             .expect("higher number of applicants than expected");
-        let program_matches = {
-            self.ranked_matches
-                .entry(program.clone())
-                .or_insert_with(Vec::new)
-        };
+        let program_matches = { self.ranked_matches.entry(program.clone()).or_default() };
         let Some(max_program_capacity) = self.program_capacities.get(program) else {
             return MatchResult::NotInterested;
         };
