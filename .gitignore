@@ -1,8 +1,11 @@
+# Ignore everything by default
+/**/*
+# Track top-level directories
+!**/
+
 !.gitignore
 !Cargo.lock
 !Cargo.toml
 !justfile
 !rust-toolchain.toml
-!src/**
-
-/**/*
+!/src/**/*
