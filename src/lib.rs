@@ -131,7 +131,7 @@ where
             program_matches
                 .iter()
                 .enumerate()
-                .min_by_key(|(_, (_, ranking))| ranking)
+                .max_by_key(|(_, (_, ranking))| ranking)
                 .expect("capacity is non-zero and length is greater than capacity")
         };
 
