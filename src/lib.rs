@@ -233,6 +233,63 @@ mod tests {
         // If we have two rings, make progress on both separately? So there would be nine actual states: for each state of the first ring, the second ring could be in one of three states.
     }
 
+    /// From <https://www.youtube.com/watch?v=yieyXPdsdsk>
+    #[test]
+    fn youtube_example() {
+        let andre = "Andre";
+        let paul = "Paul";
+        let jordan = "Jordan";
+        let teresa = "Teresa";
+        let omar = "Omar";
+        let allison = "Allison";
+
+        let mercy = "Mercy";
+        let city = "City";
+        let general = "General";
+
+        // A: YXZ   B: ZYX   C: XZY
+        let doctor_rankings = [
+            (andre, vec![city]),
+            (paul, vec![city, mercy, general]),
+            (jordan, vec![city, mercy, general]),
+            (teresa, vec![mercy, city, general]),
+            (omar, vec![mercy, general, city]),
+            (allison, vec![city, general, mercy]),
+        ]
+        .into_iter()
+        .collect();
+
+        // X: BAC   Y: CBA   Z: ACB
+        let hospital_rankings = [
+            (mercy, vec![andre, jordan]),
+            (city, vec![allison, omar, andre, teresa, paul, jordan]),
+            (general, vec![omar, allison, andre, teresa, paul, jordan]),
+        ]
+        .into_iter()
+        .collect();
+
+        let hospital_capacities = [(mercy, 2), (city, 2), (general, 2)].into_iter().collect();
+
+        // possible solutions
+        let solution = match_algorithm(hospital_capacities, doctor_rankings, hospital_rankings);
+        // doctors get their first choice and hospitals their third – (AY, BZ, CX);
+        assert!(
+            solution
+                == (
+                    HashMap::from_iter([
+                        (andre, city),
+                        (jordan, mercy),
+                        (teresa, general),
+                        (omar, general),
+                        (allison, city),
+                    ]),
+                    HashSet::from_iter([paul])
+                ),
+            "unexpected solution: {:?}",
+            solution
+        );
+    }
+
     // properties:
     // - no duplicate doctors in match output
     // - for all matchings, if a doctor prefers a hospital over their current match, that hospital prefers the doctor lower than their current match
