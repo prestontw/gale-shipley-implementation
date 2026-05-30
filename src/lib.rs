@@ -267,7 +267,6 @@ mod tests {
         let city = "City";
         let general = "General";
 
-        // A: YXZ   B: ZYX   C: XZY
         let doctor_rankings = [
             (andre, vec![city]),
             (paul, vec![city, mercy, general]),
@@ -279,7 +278,6 @@ mod tests {
         .into_iter()
         .collect();
 
-        // X: BAC   Y: CBA   Z: ACB
         let hospital_rankings = [
             (mercy, vec![andre, jordan]),
             (city, vec![allison, omar, andre, teresa, paul, jordan]),
@@ -290,9 +288,7 @@ mod tests {
 
         let hospital_capacities = [(mercy, 2), (city, 2), (general, 2)].into_iter().collect();
 
-        // possible solutions
         let solution = match_algorithm(hospital_capacities, doctor_rankings, hospital_rankings);
-        // doctors get their first choice and hospitals their third – (AY, BZ, CX);
         assert!(
             solution
                 == (
