@@ -28,7 +28,6 @@ type ProgramCapacity = u16;
 /// Applicants rank programs (Doctor Drew ranks Harvard Hospital first),
 /// and programs rank applicants (Carollton Care ranks Doctor Drew second).
 ///
-/// Optimization: when swapping a candidate, tell them where we kicked them from so we don't have to traverse up to that point again.
 /// Optimization: find connected components first then run this algorithm on the independent components?
 ///
 /// TODO: <https://www.nrmp.org/residency-applicants/get-ready-for-the-match/couples-in-the-match/>
@@ -41,19 +40,40 @@ pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::has
 
     let mut rankings = Rankings::new(&program_capacities, &applicant_rank_order_lists);
 
-    let mut candidates = program_rank_order_lists
-        .keys()
-        .cloned()
-        .collect::<VecDeque<_>>();
+    let mut scorned_candidates = VecDeque::new();
 
-    'candidate: while let Some(candidate) = candidates.pop_front() {
-        'program: for program in &program_rank_order_lists[&candidate] {
+    'candidate: for (candidate, programs) in &program_rank_order_lists {
+        'program: for program in programs {
+            match rankings.attempt_match(candidate, program) {
+                MatchResult::MatchedWithCapacity => {
+                    continue 'candidate;
+                }
+                MatchResult::WillSwapFor(other_candidate) => {
+                    scorned_candidates.push_back((other_candidate, program));
+                    continue 'candidate;
+                }
+                MatchResult::NotInterested => {
+                    continue 'program;
+                }
+            }
+        }
+
+        unmatched_applicants.insert(candidate.clone());
+    }
+
+    'candidate: while let Some((candidate, first_program)) = scorned_candidates.pop_front() {
+        // get the programs after `first_program`
+        let next_programs = program_rank_order_lists[&candidate]
+            .iter()
+            .skip_while(|program| *program != first_program)
+            .skip(1);
+        'program: for program in next_programs {
             match rankings.attempt_match(&candidate, program) {
                 MatchResult::MatchedWithCapacity => {
                     continue 'candidate;
                 }
                 MatchResult::WillSwapFor(other_candidate) => {
-                    candidates.push_back(other_candidate);
+                    scorned_candidates.push_back((other_candidate, program));
                     continue 'candidate;
                 }
                 MatchResult::NotInterested => {
