@@ -132,7 +132,13 @@ where
         let program_ranked_applicant = program_ranked_applicant
             .try_into()
             .expect("higher number of applicants than expected");
-        let program_matches = { self.ranked_matches.entry(program.clone()).or_default() };
+        let program_matches = {
+            if let Some(v) = self.ranked_matches.get_mut(program) {
+                v
+            } else {
+                self.ranked_matches.entry(program.clone()).or_default()
+            }
+        };
         let Some(max_program_capacity) = self.program_capacities.get(program) else {
             return MatchResult::NotInterested;
         };
