@@ -33,24 +33,24 @@ type ProgramCapacity = u16;
 /// TODO: <https://www.nrmp.org/residency-applicants/get-ready-for-the-match/couples-in-the-match/>
 pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::hash::Hash>(
     program_capacities: HashMap<P, ProgramCapacity>,
-    program_rank_order_lists: HashMap<A, Vec<P>>,
-    applicant_rank_order_lists: HashMap<P, Vec<A>>,
+    applicants_ranking_of_programs: HashMap<A, Vec<P>>,
+    programs_rankings_of_applicants: HashMap<P, Vec<A>>,
 ) -> (Matches<A, P>, UnmatchedApplicants<A>) {
     let mut unmatched_applicants = HashSet::new();
 
-    let mut rankings = Rankings::new(&program_capacities, &applicant_rank_order_lists);
+    let mut rankings = Rankings::new(&program_capacities, &programs_rankings_of_applicants);
 
-    let mut scorned_candidates = VecDeque::new();
+    let mut scorned_applicants = VecDeque::new();
 
-    'candidate: for (candidate, programs) in &program_rank_order_lists {
+    'applicant: for (applicant, programs) in &applicants_ranking_of_programs {
         'program: for program in programs {
-            match rankings.attempt_match(candidate, program) {
+            match rankings.attempt_match(applicant, program) {
                 MatchResult::MatchedWithCapacity => {
-                    continue 'candidate;
+                    continue 'applicant;
                 }
-                MatchResult::WillSwapFor(other_candidate) => {
-                    scorned_candidates.push_back((other_candidate, program));
-                    continue 'candidate;
+                MatchResult::WillSwapFor(other_applicant) => {
+                    scorned_applicants.push_back((other_applicant, program));
+                    continue 'applicant;
                 }
                 MatchResult::NotInterested => {
                     continue 'program;
@@ -58,23 +58,23 @@ pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::has
             }
         }
 
-        unmatched_applicants.insert(candidate.clone());
+        unmatched_applicants.insert(applicant.clone());
     }
 
-    'candidate: while let Some((candidate, first_program)) = scorned_candidates.pop_front() {
+    'applicant: while let Some((applicant, first_program)) = scorned_applicants.pop_front() {
         // get the programs after `first_program`
-        let next_programs = program_rank_order_lists[&candidate]
+        let next_programs = applicants_ranking_of_programs[&applicant]
             .iter()
             .skip_while(|program| *program != first_program)
             .skip(1);
         'program: for program in next_programs {
-            match rankings.attempt_match(&candidate, program) {
+            match rankings.attempt_match(&applicant, program) {
                 MatchResult::MatchedWithCapacity => {
-                    continue 'candidate;
+                    continue 'applicant;
                 }
-                MatchResult::WillSwapFor(other_candidate) => {
-                    scorned_candidates.push_back((other_candidate, program));
-                    continue 'candidate;
+                MatchResult::WillSwapFor(other_applicant) => {
+                    scorned_applicants.push_back((other_applicant, program));
+                    continue 'applicant;
                 }
                 MatchResult::NotInterested => {
                     continue 'program;
@@ -82,7 +82,7 @@ pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::has
             }
         }
 
-        unmatched_applicants.insert(candidate);
+        unmatched_applicants.insert(applicant);
     }
 
     (rankings.matches(), unmatched_applicants)
@@ -97,7 +97,7 @@ enum MatchResult<A> {
 
 struct Rankings<'input, P, A> {
     program_capacities: &'input HashMap<P, ProgramCapacity>,
-    applicant_rank_order_lists: &'input HashMap<P, Vec<A>>,
+    programs_rankings_of_applicants: &'input HashMap<P, Vec<A>>,
     ranked_matches: HashMap<P, Vec<(A, ProgramCapacity)>>,
 }
 
@@ -108,18 +108,18 @@ where
 {
     fn new(
         program_capacities: &'i HashMap<P, ProgramCapacity>,
-        applicant_rank_order_lists: &'i HashMap<P, Vec<A>>,
+        programs_rankings_of_applicants: &'i HashMap<P, Vec<A>>,
     ) -> Self {
         Rankings {
             program_capacities,
-            applicant_rank_order_lists,
+            programs_rankings_of_applicants,
             ranked_matches: HashMap::new(),
         }
     }
 
     fn attempt_match(&mut self, applicant: &A, program: &P) -> MatchResult<A> {
         let program_ranked_applicant = {
-            self.applicant_rank_order_lists
+            self.programs_rankings_of_applicants
                 .get(program)
                 .and_then(|rol| {
                     rol.iter()
