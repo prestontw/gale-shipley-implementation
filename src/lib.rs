@@ -4,6 +4,12 @@ pub type UnmatchedApplicants<A> = HashSet<A>;
 
 pub type Matches<A, P> = HashMap<A, P>;
 
+pub type ProgramCapacities<P> = HashMap<P, ProgramCapacity>;
+
+pub type ApplicantsRankingOfPrograms<A, P> = HashMap<A, Vec<P>>;
+
+pub type ProgramsRankingOfApplicants<A, P> = HashMap<P, Vec<A>>;
+
 /// ## Constraints
 /// Max size of program rank order lists: 300 max per <https://www.nrmp.org/help/item/how-many-programs-can-i-rank/>:
 ///
@@ -32,9 +38,9 @@ type ProgramCapacity = u16;
 ///
 /// TODO: <https://www.nrmp.org/residency-applicants/get-ready-for-the-match/couples-in-the-match/>
 pub fn match_algorithm<A: Clone + Eq + std::hash::Hash, P: Clone + Eq + std::hash::Hash>(
-    program_capacities: HashMap<P, ProgramCapacity>,
-    applicants_ranking_of_programs: HashMap<A, Vec<P>>,
-    programs_rankings_of_applicants: HashMap<P, Vec<A>>,
+    program_capacities: ProgramCapacities<P>,
+    applicants_ranking_of_programs: ApplicantsRankingOfPrograms<A, P>,
+    programs_rankings_of_applicants: ProgramsRankingOfApplicants<A, P>,
 ) -> (Matches<A, P>, UnmatchedApplicants<A>) {
     let mut unmatched_applicants = HashSet::new();
 
@@ -96,8 +102,8 @@ enum MatchResult<A> {
 }
 
 struct Rankings<'input, P, A> {
-    program_capacities: &'input HashMap<P, ProgramCapacity>,
-    programs_rankings_of_applicants: &'input HashMap<P, Vec<A>>,
+    program_capacities: &'input ProgramCapacities<P>,
+    programs_rankings_of_applicants: &'input ProgramsRankingOfApplicants<A, P>,
     ranked_matches: HashMap<P, Vec<(A, ProgramCapacity)>>,
 }
 
@@ -107,8 +113,8 @@ where
     A: Eq + std::hash::Hash + Clone,
 {
     fn new(
-        program_capacities: &'i HashMap<P, ProgramCapacity>,
-        programs_rankings_of_applicants: &'i HashMap<P, Vec<A>>,
+        program_capacities: &'i ProgramCapacities<P>,
+        programs_rankings_of_applicants: &'i ProgramsRankingOfApplicants<A, P>,
     ) -> Self {
         Rankings {
             program_capacities,
